@@ -113,40 +113,54 @@ class FigmaClient:
         )
 
     def fetch_node(self, ref: FigmaRef, *, refresh: bool = False) -> FetchedNode:
-        """Fetch a node subtree, from the cache when it has been seen already.
+        """Fetch a node subtree, from the cache when it has been seen already."""
+        return self.fetch_nodes(ref.file_key, [ref.node_id], refresh=refresh)[0]
 
-        Vector geometry is not requested: it is large and useless for code.
+    def fetch_nodes(
+        self, file_key: str, node_ids: list[str], *, refresh: bool = False
+    ) -> list[FetchedNode]:
+        """Fetch several node subtrees of one file, in the order given.
+
+        Nodes already cached (directly or inside a cached ancestor) cost no
+        request; the rest are fetched together in one request. Vector geometry
+        is not requested: it is large and useless for code.
         """
+        found: dict[str, FetchedNode] = {}
         if not refresh:
-            cached = self.cache.get(ref.file_key, ref.node_id)
-            if cached is not None:
-                return cached
+            for node_id in node_ids:
+                cached = self.cache.get(file_key, node_id)
+                if cached is not None:
+                    found[node_id] = cached
 
-        response = self._http.get(
-            f"/v1/files/{ref.file_key}/nodes",
-            params={"ids": ref.node_id},
-            headers=self._headers,
-        )
-        _raise_for_status(response)
+        missing = [n for n in dict.fromkeys(node_ids) if n not in found]
+        if missing:
+            response = self._http.get(
+                f"/v1/files/{file_key}/nodes",
+                params={"ids": ",".join(missing)},
+                headers=self._headers,
+            )
+            _raise_for_status(response)
+            body = response.json()
+            entries = body.get("nodes") or {}
+            for node_id in missing:
+                entry = entries.get(node_id)
+                if not entry or "document" not in entry:
+                    raise FigmaNotFoundError(404, f"node {node_id} not found in file {file_key}")
+                fetched = FetchedNode(
+                    file_key=file_key,
+                    node_id=node_id,
+                    file_name=body.get("name", ""),
+                    version=str(body.get("version", "")),
+                    last_modified=body.get("lastModified", ""),
+                    document=entry["document"],
+                    components=entry.get("components") or {},
+                    component_sets=entry.get("componentSets") or {},
+                    styles=entry.get("styles") or {},
+                )
+                self.cache.put(fetched)
+                found[node_id] = fetched
 
-        body = response.json()
-        entry = (body.get("nodes") or {}).get(ref.node_id)
-        if not entry or "document" not in entry:
-            raise FigmaNotFoundError(404, f"node {ref.node_id} not found in file {ref.file_key}")
-
-        fetched = FetchedNode(
-            file_key=ref.file_key,
-            node_id=ref.node_id,
-            file_name=body.get("name", ""),
-            version=str(body.get("version", "")),
-            last_modified=body.get("lastModified", ""),
-            document=entry["document"],
-            components=entry.get("components") or {},
-            component_sets=entry.get("componentSets") or {},
-            styles=entry.get("styles") or {},
-        )
-        self.cache.put(fetched)
-        return fetched
+        return [found[n] for n in node_ids]
 
     def close(self) -> None:
         self._http.close()

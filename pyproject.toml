@@ -2,7 +2,7 @@
 name = "figma-fit"
 version = "0.1.0"
 description = "Figma design context that is guaranteed to fit your token budget."
-readme = "PLAN.md"
+readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 dependencies = [

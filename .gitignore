@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+.env
+# Raw captures may contain private design data; scrub before moving into tests/fixtures/.
+captures/

@@ -1,0 +1,81 @@
+{
+  "name": "Fixture Shop",
+  "role": "owner",
+  "lastModified": "2026-09-30T12:00:00Z",
+  "editorType": "figma",
+  "thumbnailUrl": "https://example.invalid/thumb.png",
+  "version": "2219874123",
+  "nodes": {
+    "12:1": {
+      "document": {
+        "id": "12:1", "name": "Pricing", "type": "FRAME", "visible": true, "opacity": 1,
+        "blendMode": "PASS_THROUGH", "clipsContent": true,
+        "absoluteBoundingBox": {"x": 0, "y": 0, "width": 1440, "height": 900},
+        "fills": [{"blendMode": "NORMAL", "type": "SOLID", "color": {"r": 1, "g": 1, "b": 1, "a": 1}}],
+        "layoutMode": "VERTICAL", "itemSpacing": 32, "paddingTop": 64, "paddingBottom": 64,
+        "children": [
+          {
+            "id": "12:2", "name": "Header", "type": "FRAME", "visible": true,
+            "absoluteBoundingBox": {"x": 0, "y": 64, "width": 1440, "height": 80},
+            "fills": [],
+            "children": [
+              {
+                "id": "12:3", "name": "Title", "type": "TEXT", "characters": "Choose your plan",
+                "absoluteBoundingBox": {"x": 520, "y": 64, "width": 400, "height": 48},
+                "style": {"fontFamily": "Inter", "fontWeight": 700, "fontSize": 40, "lineHeightPx": 48.40000152587891},
+                "fills": [{"blendMode": "NORMAL", "type": "SOLID", "color": {"r": 0.0666666701436043, "g": 0.0941176488995552, "b": 0.15294118225574493, "a": 1}}]
+              }
+            ]
+          },
+          {
+            "id": "12:4", "name": "Old banner", "type": "FRAME", "visible": false,
+            "absoluteBoundingBox": {"x": 0, "y": 0, "width": 1440, "height": 40},
+            "fills": [], "children": []
+          },
+          {
+            "id": "12:5", "name": "Cards", "type": "FRAME", "visible": true,
+            "absoluteBoundingBox": {"x": 120, "y": 176, "width": 1200, "height": 560},
+            "layoutMode": "HORIZONTAL", "itemSpacing": 24, "fills": [],
+            "children": [
+              {
+                "id": "12:6", "name": "Card", "type": "INSTANCE", "componentId": "3:10",
+                "componentProperties": {"Tier": {"type": "VARIANT", "value": "Basic"}},
+                "absoluteBoundingBox": {"x": 120, "y": 176, "width": 384, "height": 560},
+                "children": [
+                  {"id": "I12:6;3:11", "name": "Price", "type": "TEXT", "characters": "$9",
+                   "absoluteBoundingBox": {"x": 144, "y": 200, "width": 80, "height": 40}}
+                ]
+              },
+              {
+                "id": "12:7", "name": "Card", "type": "INSTANCE", "componentId": "3:10",
+                "componentProperties": {"Tier": {"type": "VARIANT", "value": "Pro"}},
+                "absoluteBoundingBox": {"x": 528, "y": 176, "width": 384, "height": 560},
+                "children": [
+                  {"id": "I12:7;3:11", "name": "Price", "type": "TEXT", "characters": "$29",
+                   "absoluteBoundingBox": {"x": 552, "y": 200, "width": 80, "height": 40}}
+                ]
+              },
+              {
+                "id": "12:8", "name": "Card", "type": "INSTANCE", "componentId": "3:10",
+                "componentProperties": {"Tier": {"type": "VARIANT", "value": "Team"}},
+                "absoluteBoundingBox": {"x": 936, "y": 176, "width": 384, "height": 560},
+                "children": [
+                  {"id": "I12:8;3:11", "name": "Price", "type": "TEXT", "characters": "€49 / Mitglied",
+                   "absoluteBoundingBox": {"x": 960, "y": 200, "width": 160, "height": 40}}
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "components": {
+        "3:10": {"key": "abc123", "name": "Tier=Basic", "description": "", "componentSetId": "3:9"}
+      },
+      "componentSets": {
+        "3:9": {"key": "def456", "name": "Card", "description": ""}
+      },
+      "schemaVersion": 0,
+      "styles": {}
+    }
+  }
+}

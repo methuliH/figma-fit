@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.scripts]
-figma-fit = "figma_fit.server:main"
+figma-fit = "figma_fit.cli:main"
 
 [dependency-groups]
 dev = [

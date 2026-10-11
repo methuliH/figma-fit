@@ -1,0 +1,15 @@
+# Not needed to run the server inside Claude Desktop.
+# Keep README.md: pyproject.toml names it, and uv needs it to build the project.
+tests/
+docs/
+scripts/
+captures/
+.github/
+.venv/
+dist/
+PLAN.md
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.hypothesis/

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/mcpb/main/dist/mcpb-manifest-v0.4.schema.json",
+  "manifest_version": "0.4",
+  "name": "figma-fit",
+  "display_name": "figma-fit",
+  "version": "0.1.0",
+  "description": "Figma design data that always fits your token budget, with a report of what was removed.",
+  "long_description": "Paste a Figma frame link and Claude gets the design compacted to fit a token budget: hidden layers, empty wrappers, repeated styles and repeated components are trimmed, and the first line says what was removed. Frames too big for one response come back as a plan of smaller calls that each fit, served from a cache so they cost no extra Figma requests. Read-only: it never changes your Figma files.",
+  "author": {
+    "name": "methuliH",
+    "url": "https://github.com/methuliH"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/methuliH/figma-fit"
+  },
+  "homepage": "https://github.com/methuliH/figma-fit",
+  "documentation": "https://github.com/methuliH/figma-fit#readme",
+  "support": "https://github.com/methuliH/figma-fit/issues",
+  "icon": "icon.png",
+  "license": "MIT",
+  "keywords": ["figma", "design", "tokens", "context", "design-to-code"],
+  "server": {
+    "type": "uv",
+    "entry_point": "src/figma_fit/cli.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "--directory", "${__dirname}", "--frozen", "--no-dev", "figma-fit"],
+      "env": {
+        "FIGMA_TOKEN": "${user_config.figma_token}",
+        "PYTHONUTF8": "1"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "fetch_within_budget",
+      "description": "Fetch a Figma frame compacted to fit a token budget, or a plan of smaller calls."
+    },
+    {
+      "name": "fetch_node_within_budget",
+      "description": "Fetch the nodes listed in a split plan (served from cache), compacted to fit the budget."
+    }
+  ],
+  "user_config": {
+    "figma_token": {
+      "type": "string",
+      "title": "Figma personal access token",
+      "description": "Create one in Figma: Settings → Security → Personal access tokens, with read-only File content access. figma-fit only ever reads.",
+      "sensitive": true,
+      "required": true
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "python": ">=3.11"
+    }
+  }
+}

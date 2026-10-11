@@ -7,3 +7,4 @@ dist/
 .env
 # Raw captures may contain private design data; scrub before moving into tests/fixtures/.
 captures/
+.hypothesis/

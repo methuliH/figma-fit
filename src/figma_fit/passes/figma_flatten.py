@@ -2,9 +2,11 @@
 
 A wrapper is a FRAME or GROUP with one child that paints nothing, clips
 nothing, applies no opacity, blend or rotation, and has no auto-layout of its
-own. Inside an auto-layout parent it must also be the same box as its child,
-because there the wrapper's size takes part in the flow. Requested roots are
-never flattened.
+own. It must also sit in its parent the way its child sits in it (same
+constraints, or the same auto-layout sizing and positioning), or the child
+would inherit placement rules it does not have. Inside an auto-layout parent
+it must also be the same box as its child, because there the wrapper's size
+takes part in the flow. Requested roots are never flattened.
 """
 
 from __future__ import annotations
@@ -17,6 +19,16 @@ from figma_fit.passes.base import CHILDREN, plural
 _WRAPPER_TYPES = {"FRAME", "GROUP"}
 _PAINT_KEYS = ("fills", "strokes", "effects")
 _BOX_TOLERANCE = 0.5
+
+# How a node is placed in its parent, with the value the API implies when absent.
+_FLOW_PLACEMENT = {
+    "layoutPositioning": "AUTO",
+    "layoutGrow": 0,
+    "layoutAlign": "INHERIT",
+    "layoutSizingHorizontal": "FIXED",
+    "layoutSizingVertical": "FIXED",
+}
+_FREE_PLACEMENT = {"constraints": {"vertical": "TOP", "horizontal": "LEFT"}}
 
 
 class FlattenWrappers:
@@ -55,6 +67,9 @@ def _is_wrapper(node: dict[str, Any], parent_in_flow: bool) -> bool:
     if node.get("opacity", 1) != 1 or node.get("blendMode", "PASS_THROUGH") != "PASS_THROUGH":
         return False
     if node.get("rotation", 0) or _has_auto_layout(node):
+        return False
+    placement = _FLOW_PLACEMENT if parent_in_flow else _FREE_PLACEMENT
+    if any(node.get(k, d) != children[0].get(k, d) for k, d in placement.items()):
         return False
     return not parent_in_flow or _same_box(node, children[0])
 

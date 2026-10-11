@@ -203,6 +203,41 @@ def test_in_auto_layout_only_same_size_wrappers_flatten():
     assert ids(state) == ["1:1", "1:2", "1:3", "1:5"]
 
 
+@pytest.mark.parametrize(
+    "props",
+    [
+        {"layoutPositioning": "ABSOLUTE"},
+        {"layoutGrow": 1},
+        {"layoutAlign": "STRETCH"},
+        {"layoutSizingHorizontal": "FILL"},
+    ],
+)
+def test_in_auto_layout_keeps_wrappers_placed_differently_from_their_child(props):
+    child = leaf("1:3", absoluteBoundingBox=box(0, 0, 10, 10))
+    wrapper = frame("1:2", [child], absoluteBoundingBox=box(0, 0, 10, 10), **props)
+    state, _ = run(FlattenWrappers(), frame("1:1", [wrapper], layoutMode="HORIZONTAL"))
+    assert "1:2" in ids(state)
+
+
+def test_in_auto_layout_flattens_wrappers_placed_like_their_child():
+    fill = {"layoutSizingHorizontal": "FILL", "layoutGrow": 1}
+    child = leaf("1:3", absoluteBoundingBox=box(0, 0, 10, 10), **fill)
+    wrapper = frame("1:2", [child], absoluteBoundingBox=box(0, 0, 10, 10), **fill)
+    state, _ = run(FlattenWrappers(), frame("1:1", [wrapper], layoutMode="HORIZONTAL"))
+    assert ids(state) == ["1:1", "1:3"]
+
+
+def test_keeps_wrappers_whose_constraints_differ_from_their_child():
+    pinned = {"vertical": "TOP", "horizontal": "RIGHT"}
+    wrapper = frame("1:2", [leaf("1:3")], constraints=pinned)
+    state, _ = run(FlattenWrappers(), frame("1:1", [wrapper]))
+    assert "1:2" in ids(state)
+
+    same = frame("1:2", [leaf("1:3", constraints=pinned)], constraints=pinned)
+    state, _ = run(FlattenWrappers(), frame("1:1", [same]))
+    assert ids(state) == ["1:1", "1:3"]
+
+
 def test_never_flattens_the_requested_root():
     state, _ = run(FlattenWrappers(), frame("1:1", [leaf("1:2")]))
     assert ids(state) == ["1:1", "1:2"]

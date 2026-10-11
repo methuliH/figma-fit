@@ -1,3 +1,5 @@
+import copy
+
 import httpx
 import pytest
 import respx
@@ -75,6 +77,25 @@ def test_refresh_bypasses_cache(client, pricing_body):
     client.fetch_node(REF, refresh=True)
 
     assert route.call_count == 2
+
+
+@respx.mock
+def test_new_file_version_evicts_older_cached_subtrees(client, pricing_body):
+    newer = copy.deepcopy(pricing_body)
+    newer["version"] = "2219874999"
+    newer["nodes"]["12:1"]["document"]["children"][2]["children"][1]["children"][0][
+        "characters"
+    ] = "$39"
+    respx.get(NODES_URL).mock(
+        side_effect=[httpx.Response(200, json=pricing_body), httpx.Response(200, json=newer)]
+    )
+
+    client.fetch_node(REF)
+    client.fetch_node(REF, refresh=True)
+    price = client.fetch_node(FigmaRef("FileKey", "I12:7;3:11"))
+
+    assert price.from_cache and price.version == "2219874999"
+    assert price.document["characters"] == "$39"
 
 
 @respx.mock

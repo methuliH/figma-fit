@@ -62,8 +62,14 @@ class SubtreeCache:
         self._entries: dict[str, list[tuple[FetchedNode, dict[str, dict[str, Any]]]]] = {}
 
     def put(self, fetched: FetchedNode) -> None:
+        """Add a subtree. A new file version evicts everything cached from older ones,
+        so a follow-up never mixes two versions of the design."""
+        entries = [
+            e for e in self._entries.get(fetched.file_key, []) if e[0].version == fetched.version
+        ]
         index = {node["id"]: node for node in _walk(fetched.document) if "id" in node}
-        self._entries.setdefault(fetched.file_key, []).append((fetched, index))
+        entries.append((fetched, index))
+        self._entries[fetched.file_key] = entries
 
     def get(self, file_key: str, node_id: str) -> FetchedNode | None:
         for fetched, index in reversed(self._entries.get(file_key, [])):

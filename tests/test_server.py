@@ -80,6 +80,18 @@ async def test_split_plan_follow_up_is_served_from_cache():
     assert [n["id"] for n in data["data"]] == call["node_ids"]
 
 
+@respx.mock
+async def test_refresh_refetches_instead_of_using_the_cache(pricing_body):
+    route = respx.get(NODES_URL).mock(return_value=httpx.Response(200, json=pricing_body))
+    async with Client(make_server()) as client:
+        await client.call_tool("fetch_within_budget", {"url": URL})
+        await client.call_tool("fetch_within_budget", {"url": URL})
+        assert route.call_count == 1
+        result = await client.call_tool("fetch_within_budget", {"url": URL, "refresh": True})
+    assert not result.is_error
+    assert route.call_count == 2
+
+
 @pytest.mark.parametrize(
     ("args", "message"),
     [

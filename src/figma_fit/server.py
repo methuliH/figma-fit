@@ -23,6 +23,10 @@ Passes = Annotated[
     Field(description=f"Subset of {list(PASS_NAMES)} to allow. Default: all."),
 ]
 PlanOffset = Annotated[int, Field(ge=0, description="Skip this many calls of a split plan.")]
+Refresh = Annotated[
+    bool,
+    Field(description="Re-fetch from Figma, e.g. after the design changed. Costs one request."),
+]
 
 
 def create_server(client_factory: Callable[[], FigmaClient] = FigmaClient.from_env) -> MCPServer:
@@ -48,12 +52,13 @@ def create_server(client_factory: Callable[[], FigmaClient] = FigmaClient.from_e
         budget: Budget = DEFAULT_BUDGET,
         passes: Passes = None,
         plan_offset: PlanOffset = 0,
+        refresh: Refresh = False,
     ) -> str:
         """Fetch a Figma frame compacted to fit `budget` tokens, or a plan of smaller calls."""
         # Validate everything before fetching: some plans allow only a few requests a month.
         ref = _call(parse_figma_url, url)
         selected = _call(select_passes, passes)
-        fetched = _call(get_client().fetch_nodes, ref.file_key, [ref.node_id])
+        fetched = _call(_fetch, get_client(), ref.file_key, [ref.node_id], refresh)
         return _call(_fit, fetched, budget, selected, plan_offset)
 
     @server.tool()
@@ -71,6 +76,10 @@ def create_server(client_factory: Callable[[], FigmaClient] = FigmaClient.from_e
         return _call(_fit, fetched, budget, selected, plan_offset)
 
     return server
+
+
+def _fetch(client: FigmaClient, file_key: str, node_ids: list[str], refresh: bool):
+    return client.fetch_nodes(file_key, node_ids, refresh=refresh)
 
 
 def _fit(fetched, budget: int, passes, plan_offset: int) -> str:

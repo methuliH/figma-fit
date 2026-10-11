@@ -1,5 +1,455 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
-<title>figma-fit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="figma-fit-key" content="__FIGMA_FIT_KEY__">
-<p>figma-fit is running.</p>
+<title>figma-fit</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #f6f6f3;
+    --panel: #ffffff;
+    --ink: #1c1c1a;
+    --muted: #6b6b66;
+    --line: #e4e4de;
+    --accent: #5b3fd6;
+    --accent-ink: #ffffff;
+    --good: #1f7a4d;
+    --good-bg: #e3f3ea;
+    --warn: #8a5a00;
+    --warn-bg: #fbefd6;
+    --bad: #b3261e;
+    --bad-bg: #fbe4e2;
+    --bar: #e9e6fb;
+    --code-bg: #f1f0ec;
+    --radius: 12px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413;
+      --panel: #1d1d1b;
+      --ink: #ececea;
+      --muted: #a0a09a;
+      --line: #33332f;
+      --accent: #9b87ff;
+      --accent-ink: #141413;
+      --good: #6fd29c;
+      --good-bg: #173326;
+      --warn: #f0c060;
+      --warn-bg: #3a2e12;
+      --bad: #ff8a80;
+      --bad-bg: #3d1c1a;
+      --bar: #2c2650;
+      --code-bg: #171716;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 var(--sans);
+  }
+  main { max-width: 920px; margin: 0 auto; padding: 32px 16px 64px; }
+  header h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
+  header p { margin: 4px 0 24px; color: var(--muted); }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab {
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+    padding: 7px 14px;
+    border-radius: 999px;
+    font: inherit;
+    cursor: pointer;
+  }
+  .tab[aria-selected="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+  label { display: block; font-weight: 600; margin: 12px 0 6px; }
+  .hint { color: var(--muted); font-size: 13px; font-weight: 400; }
+  input[type="text"], input[type="password"], input[type="number"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--ink);
+    font: inherit;
+  }
+  input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .budget-row input[type="range"] { flex: 1; min-width: 180px; accent-color: var(--accent); }
+  .budget-row input[type="number"] { width: 110px; }
+  .chip {
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .check { display: flex; gap: 8px; align-items: center; font-weight: 400; margin-top: 12px; }
+  .go {
+    margin-top: 18px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: 0;
+    border-radius: 8px;
+    padding: 11px 20px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .go[disabled] { opacity: 0.6; cursor: progress; }
+  .error { margin-top: 14px; padding: 10px 12px; border-radius: 8px; background: var(--bad-bg); color: var(--bad); }
+  .hidden { display: none !important; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+  .pill.fit { background: var(--good-bg); color: var(--good); }
+  .pill.split { background: var(--warn-bg); color: var(--warn); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0; }
+  .stat { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .stat .label { color: var(--muted); font-size: 13px; }
+  .stat .value { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .meter { height: 10px; border-radius: 999px; background: var(--bar); overflow: hidden; margin-top: 6px; }
+  .meter > div { height: 100%; background: var(--accent); }
+  h2 { font-size: 17px; margin: 22px 0 10px; }
+  .passes { list-style: none; margin: 0; padding: 0; }
+  .passes li { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .passes li:first-child { border-top: 0; }
+  .passes .what { color: var(--muted); font-size: 13px; grid-column: 1 / -1; }
+  .passes .saved { font-variant-numeric: tabular-nums; color: var(--good); font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; border-top: 0; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  code, pre { font-family: var(--mono); font-size: 13px; }
+  .output-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    max-height: 420px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 8px 0 0;
+  }
+  .report { font-family: var(--mono); font-size: 13px; color: var(--muted); margin: 0; word-break: break-word; }
+  footer { color: var(--muted); font-size: 13px; text-align: center; margin-top: 24px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>figma-fit</h1>
+    <p>Figma design data that always fits your token budget, and a list of what was removed to get there.</p>
+  </header>
+
+  <section class="panel" aria-label="What to fetch">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-source="link" aria-selected="true">Figma link</button>
+      <button class="tab" role="tab" data-source="sample" aria-selected="false">Sample design</button>
+      <button class="tab" role="tab" data-source="capture" aria-selected="false">Saved file</button>
+    </div>
+
+    <div data-pane="link">
+      <label for="url">Frame link <span class="hint">In Figma: right-click a frame → Copy link to selection</span></label>
+      <input id="url" type="text" placeholder="https://www.figma.com/design/…?node-id=12-1" autocomplete="off" spellcheck="false">
+      <div id="token-box" class="hidden">
+        <label for="token">Figma token <span class="hint">Read-only access is enough. Kept in memory until you close figma-fit.</span></label>
+        <input id="token" type="password" placeholder="figd_…" autocomplete="off">
+      </div>
+      <label class="check"><input id="refresh" type="checkbox"> Re-fetch from Figma (after the design changed; uses a request)</label>
+    </div>
+
+    <div data-pane="sample" class="hidden">
+      <p>A built-in practice design: a dashboard with repeated rows, hidden layers and repeated styles, about 38k tokens. No token or Figma request needed.</p>
+    </div>
+
+    <div data-pane="capture" class="hidden">
+      <label for="file">Saved Figma API response <span class="hint">From <code>scripts/record_fixture.py</code>. Replays without using a request.</span></label>
+      <input id="file" type="file" accept=".json,application/json">
+    </div>
+
+    <label for="budget-num">Budget <span class="hint">The most tokens the result may use</span></label>
+    <div class="row budget-row">
+      <input id="budget-range" type="range" min="1000" max="50000" step="1000" value="20000" aria-label="Budget">
+      <input id="budget-num" type="number" min="1000" step="500" value="20000">
+      <button class="chip" data-budget="5000">5k</button>
+      <button class="chip" data-budget="10000">10k</button>
+      <button class="chip" data-budget="20000">20k</button>
+    </div>
+
+    <button id="go" class="go">Fetch</button>
+    <div id="error" class="error hidden" role="alert"></div>
+  </section>
+
+  <section id="result" class="panel hidden" aria-live="polite">
+    <div class="row">
+      <span id="pill" class="pill"></span>
+      <span id="file-name" class="hint"></span>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="label">Original design</div><div class="value" id="s-original"></div></div>
+      <div class="stat"><div class="label" id="s-result-label"></div><div class="value" id="s-result"></div></div>
+      <div class="stat"><div class="label" id="s-saved-label"></div><div class="value" id="s-saved"></div></div>
+      <div class="stat">
+        <div class="label" id="s-budget-label"></div>
+        <div class="meter"><div id="s-meter"></div></div>
+      </div>
+    </div>
+
+    <p class="report" id="report"></p>
+
+    <div id="passes-box">
+      <h2>What was removed</h2>
+      <ul class="passes" id="passes"></ul>
+    </div>
+
+    <div id="split-box" class="hidden">
+      <h2>Too big for one response: fetch it in these calls</h2>
+      <p class="hint" id="split-note"></p>
+      <table>
+        <thead><tr><th>Call</th><th>Layers</th><th>Size</th></tr></thead>
+        <tbody id="calls"></tbody>
+      </table>
+      <div id="oversize-box" class="hidden">
+        <h2>Too big even on their own</h2>
+        <table>
+          <thead><tr><th>Layer</th><th>Size</th><th></th></tr></thead>
+          <tbody id="oversize"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="output-head">
+      <h2>What Claude receives</h2>
+      <div class="row">
+        <label class="check" style="margin:0"><input id="pretty" type="checkbox" checked> Readable</label>
+        <button class="chip" id="copy">Copy</button>
+        <button class="chip" id="download">Download</button>
+      </div>
+    </div>
+    <pre id="output"></pre>
+  </section>
+
+  <footer>Runs on your computer only. Close this tab and press Ctrl+C in the terminal to stop.</footer>
+</main>
+
+<script>
+(() => {
+  const KEY = document.querySelector('meta[name="figma-fit-key"]').content;
+  const $ = (id) => document.getElementById(id);
+  const PASS_LABELS = {
+    drop_invisible: "Removed hidden and off-screen layers",
+    flatten_wrappers: "Unwrapped empty frames",
+    dedupe_styles: "Shared repeated colours and text styles",
+    collapse_instances: "Collapsed repeated components",
+    minify: "Shortened the data",
+  };
+  let source = "link";
+  let last = null;
+
+  const fmt = (n) => n < 1000 ? String(n) : (n / 1000).toFixed(n < 100000 ? 1 : 0) + "k";
+
+  function api(path, body) {
+    const opts = { headers: { "X-Figma-Fit-Key": KEY } };
+    if (body !== undefined) {
+      opts.method = "POST";
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(body);
+    }
+    return fetch(path, opts).then(async (r) => {
+      const data = await r.json().catch(() => ({ error: "unexpected response" }));
+      if (!r.ok) throw Object.assign(new Error(data.error || "request failed"), { code: data.code });
+      return data;
+    });
+  }
+
+  function el(tag, text, cls) {
+    const node = document.createElement(tag);
+    if (text !== undefined) node.textContent = text;
+    if (cls) node.className = cls;
+    return node;
+  }
+
+  // Tabs
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      source = tab.dataset.source;
+      document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
+      document.querySelectorAll("[data-pane]").forEach((p) => p.classList.toggle("hidden", p.dataset.pane !== source));
+    });
+  });
+
+  // Budget controls stay in sync
+  const range = $("budget-range"), num = $("budget-num");
+  range.addEventListener("input", () => { num.value = range.value; });
+  num.addEventListener("input", () => { range.value = num.value; });
+  document.querySelectorAll("[data-budget]").forEach((chip) =>
+    chip.addEventListener("click", () => { num.value = range.value = chip.dataset.budget; }));
+
+  // Ask for a token only when there isn't one
+  api("/api/status").then((s) => $("token-box").classList.toggle("hidden", s.has_token)).catch(() => {});
+
+  function showError(message) {
+    $("error").textContent = message;
+    $("error").classList.remove("hidden");
+  }
+
+  async function readCapture() {
+    const file = $("file").files[0];
+    if (!file) throw new Error("Choose a saved file first.");
+    try {
+      return { name: file.name.replace(/\.json$/i, ""), capture: JSON.parse(await file.text()) };
+    } catch {
+      throw new Error("That file is not valid JSON.");
+    }
+  }
+
+  async function go() {
+    $("error").classList.add("hidden");
+    const request = { source, budget: parseInt(num.value, 10) };
+    try {
+      if (source === "link") {
+        request.url = $("url").value.trim();
+        request.refresh = $("refresh").checked;
+        if (!request.url) throw new Error("Paste a Figma frame link first.");
+        const token = $("token").value.trim();
+        if (token) request.token = token;
+      } else if (source === "capture") {
+        Object.assign(request, await readCapture());
+      }
+    } catch (e) {
+      return showError(e.message);
+    }
+
+    $("go").disabled = true;
+    $("go").textContent = "Fetching…";
+    try {
+      last = await api("/api/fit", request);
+      if (request.token) { $("token").value = ""; $("token-box").classList.add("hidden"); }
+      render(last);
+    } catch (e) {
+      if (e.code === "needs_token") $("token-box").classList.remove("hidden");
+      showError(e.message);
+    } finally {
+      $("go").disabled = false;
+      $("go").textContent = "Fetch";
+    }
+  }
+
+  function render(d) {
+    const body = d.body || {};
+    const split = d.status === "split";
+    $("result").classList.remove("hidden");
+    $("pill").className = "pill " + (split ? "split" : "fit");
+    $("pill").textContent = split ? "Split into smaller calls" : "Fits the budget";
+    $("file-name").textContent = body.file ? body.file.name : "";
+
+    $("s-original").textContent = fmt(d.original_tokens) + " tokens";
+    $("s-result-label").textContent = split ? "This response (the plan)" : "Sent to Claude";
+    $("s-result").textContent = fmt(d.tokens) + " tokens";
+    const saved = d.original_tokens > 0 ? Math.max(0, Math.round(100 * (1 - d.tokens / d.original_tokens))) : 0;
+    const totalCalls = (body.calls || []).length + (body.more ? body.more.remaining_calls : 0);
+    $("s-saved-label").textContent = split ? "Follow-up calls" : "Saved";
+    $("s-saved").textContent = split ? String(totalCalls) : saved + "%";
+    $("s-budget-label").textContent = `Uses ${fmt(d.tokens)} of ${fmt(d.budget)} budget`;
+    $("s-meter").style.width = Math.min(100, (100 * d.tokens) / d.budget) + "%";
+    $("report").textContent = d.report;
+
+    const list = $("passes");
+    list.replaceChildren();
+    d.notes.forEach((n) => {
+      const li = el("li");
+      li.append(el("strong", PASS_LABELS[n.pass] || n.pass));
+      const cut = n.before - n.after;
+      li.append(el("span", cut > 0 ? "−" + fmt(cut) + " tokens" : "", "saved"));
+      li.append(el("span", n.removed, "what"));
+      list.append(li);
+    });
+    if (d.notes.length === 0) {
+      list.append(el("li", "Nothing: it already fit, so you get the full detail."));
+    }
+
+    $("split-box").classList.toggle("hidden", !split);
+    if (split) {
+      const calls = body.calls || [];
+      const more = body.more ? ` ${body.more.remaining_calls} more after these.` : "";
+      $("split-note").textContent =
+        `Claude makes each call with fetch_node_within_budget. They are served from cache, so they don't use Figma requests.${more}`;
+      const tbody = $("calls");
+      tbody.replaceChildren();
+      calls.forEach((c, i) => {
+        const tr = el("tr");
+        tr.append(el("td", String(i + 1), "num"));
+        tr.append(el("td", groupRepeats(c.layers)));
+        tr.append(el("td", fmt(c.est_tokens) + " tokens", "num"));
+        tbody.append(tr);
+      });
+      const over = body.oversize || [];
+      $("oversize-box").classList.toggle("hidden", over.length === 0);
+      const otbody = $("oversize");
+      otbody.replaceChildren();
+      over.forEach((o) => {
+        const tr = el("tr");
+        tr.append(el("td", o.layer));
+        tr.append(el("td", fmt(o.est_tokens) + " tokens", "num"));
+        tr.append(el("td", o.hint, "hint"));
+        otbody.append(tr);
+      });
+    }
+    renderOutput();
+  }
+
+  // "Row (INSTANCE), Row (INSTANCE), Row (INSTANCE)" -> "Row (INSTANCE) ×3"
+  function groupRepeats(names) {
+    const out = [];
+    for (const name of names) {
+      const prev = out[out.length - 1];
+      if (prev && prev.name === name) prev.n += 1;
+      else out.push({ name, n: 1 });
+    }
+    return out.map((g) => (g.n > 1 ? `${g.name} ×${g.n}` : g.name)).join(", ");
+  }
+
+  function renderOutput() {
+    if (!last) return;
+    const pretty = $("pretty").checked && last.body;
+    $("output").textContent = pretty ? last.report + "\n" + JSON.stringify(last.body, null, 2) : last.text;
+  }
+
+  $("pretty").addEventListener("change", renderOutput);
+  $("copy").addEventListener("click", async () => {
+    if (!last) return;
+    await navigator.clipboard.writeText(last.text);
+    $("copy").textContent = "Copied";
+    setTimeout(() => { $("copy").textContent = "Copy"; }, 1500);
+  });
+  $("download").addEventListener("click", () => {
+    if (!last) return;
+    const a = el("a");
+    a.href = URL.createObjectURL(new Blob([last.text], { type: "text/plain" }));
+    a.download = "figma-fit-output.txt";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+  $("go").addEventListener("click", go);
+  $("url").addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+})();
+</script>
+</body>
+</html>

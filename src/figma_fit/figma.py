@@ -146,25 +146,9 @@ class FigmaClient:
                 headers=self._headers,
             )
             _raise_for_status(response)
-            body = response.json()
-            entries = body.get("nodes") or {}
-            for node_id in missing:
-                entry = entries.get(node_id)
-                if not entry or "document" not in entry:
-                    raise FigmaNotFoundError(404, f"node {node_id} not found in file {file_key}")
-                fetched = FetchedNode(
-                    file_key=file_key,
-                    node_id=node_id,
-                    file_name=body.get("name", ""),
-                    version=str(body.get("version", "")),
-                    last_modified=body.get("lastModified", ""),
-                    document=entry["document"],
-                    components=entry.get("components") or {},
-                    component_sets=entry.get("componentSets") or {},
-                    styles=entry.get("styles") or {},
-                )
+            for fetched in nodes_from_body(file_key, response.json(), missing):
                 self.cache.put(fetched)
-                found[node_id] = fetched
+                found[fetched.node_id] = fetched
 
         return [found[n] for n in node_ids]
 
@@ -176,6 +160,38 @@ class FigmaClient:
 
     def __exit__(self, *exc: object) -> None:
         self.close()
+
+
+def nodes_from_body(
+    file_key: str, body: dict[str, Any], node_ids: list[str] | None = None
+) -> list[FetchedNode]:
+    """Turn a GET /v1/files/:key/nodes response into FetchedNodes.
+
+    Used for live fetches and for saved captures. With ``node_ids``, every one
+    must be present; without, all nodes in the response are returned.
+    """
+    entries = body.get("nodes") or {}
+    if node_ids is None:
+        node_ids = [n for n, e in entries.items() if e and "document" in e]
+    out = []
+    for node_id in node_ids:
+        entry = entries.get(node_id)
+        if not entry or "document" not in entry:
+            raise FigmaNotFoundError(404, f"node {node_id} not found in file {file_key}")
+        out.append(
+            FetchedNode(
+                file_key=file_key,
+                node_id=node_id,
+                file_name=body.get("name", ""),
+                version=str(body.get("version", "")),
+                last_modified=body.get("lastModified", ""),
+                document=entry["document"],
+                components=entry.get("components") or {},
+                component_sets=entry.get("componentSets") or {},
+                styles=entry.get("styles") or {},
+            )
+        )
+    return out
 
 
 def _raise_for_status(response: httpx.Response) -> None:

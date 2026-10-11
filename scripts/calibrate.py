@@ -22,7 +22,7 @@ from pathlib import Path
 
 import anthropic
 
-from figma_fit.figma import FetchedNode
+from figma_fit.figma import FetchedNode, nodes_from_body
 from figma_fit.fit import fit_nodes
 from figma_fit.pipeline import SAFETY
 from figma_fit.tokens import DEFAULT_ESTIMATOR, serialize
@@ -32,23 +32,7 @@ BUDGETS = (2_000, 8_000, 25_000)
 
 
 def load(path: Path) -> list[FetchedNode]:
-    body = json.loads(path.read_text(encoding="utf-8"))
-    key = path.stem
-    return [
-        FetchedNode(
-            key,
-            node_id,
-            body.get("name", ""),
-            str(body.get("version", "")),
-            "",
-            entry["document"],
-            {},
-            {},
-            {},
-        )
-        for node_id, entry in (body.get("nodes") or {}).items()
-        if entry and "document" in entry
-    ]
+    return nodes_from_body(path.stem, json.loads(path.read_text(encoding="utf-8")))
 
 
 def main() -> None:

@@ -56,8 +56,23 @@ The full analysis is in [PLAN.md](PLAN.md).
    Build this pricing section in React: https://www.figma.com/design/AbC123/Shop?node-id=12-1
    ```
 
+### Claude Desktop: one-click extension
+
+No terminal needed:
+
+1. Get `figma-fit-<version>.mcpb`: download it from the **figma-fit-extension** artifact of the latest [CI run](https://github.com/methuliH/figma-fit/actions/workflows/ci.yml) (unzip the download), or build it yourself:
+
+   ```bash
+   npx @anthropic-ai/mcpb pack . dist/figma-fit.mcpb
+   ```
+
+2. Double-click the `.mcpb` file (or drag it onto Claude Desktop's **Settings → Extensions**).
+3. Paste your Figma token when asked. Claude Desktop stores it as a sensitive setting and passes it to figma-fit; it never goes into a chat.
+
+The extension uses the MCPB `uv` runtime, so Claude Desktop sets up Python and the dependencies itself. That runtime is still marked experimental, so it needs a recent Claude Desktop.
+
 <details>
-<summary>Cursor, Claude Desktop and other MCP clients</summary>
+<summary>Cursor, Claude Desktop (manual config) and other MCP clients</summary>
 
 Add this to the client's MCP config (for example `.cursor/mcp.json` or `claude_desktop_config.json`):
 
@@ -209,7 +224,10 @@ src/figma_fit/
 └── passes/             # figma_*.py hold the Figma rules; generic_minify.py is format-agnostic
 scripts/
 ├── record_fixture.py   # Capture a real frame for tests and calibration
-└── calibrate.py        # Compare estimates with Anthropic's token counter
+├── calibrate.py        # Compare estimates with Anthropic's token counter
+└── check_extension.py  # Start a built .mcpb the way Claude Desktop does
+manifest.json           # Claude Desktop extension (MCPB) manifest
+.mcpbignore             # What stays out of the extension
 ```
 
 Only `passes/figma_*.py`, `url.py` and `figma.py` know about Figma. The pipeline, split planner and report work on any JSON tree, which is what lets figma-fit wrap other MCP servers later.
@@ -235,6 +253,13 @@ uv run --group calibrate python scripts/calibrate.py
 ```
 
 It prints the estimate ÷ actual ratio for every capture and budget, and says whether the guarantee holds on your files.
+
+Build the Claude Desktop extension and check that it starts (needs Node and uv):
+
+```bash
+npx @anthropic-ai/mcpb pack . dist/figma-fit.mcpb
+python scripts/check_extension.py dist/figma-fit.mcpb
+```
 
 ## 🚧 Limits
 

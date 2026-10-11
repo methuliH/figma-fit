@@ -25,3 +25,29 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest
+
+  extension:
+    name: Claude Desktop extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - name: Validate manifest
+        run: npx -y @anthropic-ai/mcpb@2.1.2 validate manifest.json
+      - name: Pack
+        run: |
+          version=$(jq -r .version manifest.json)
+          mkdir -p dist
+          npx -y @anthropic-ai/mcpb@2.1.2 pack . "dist/figma-fit-${version}.mcpb"
+      - name: Start it the way Claude Desktop does
+        run: python3 scripts/check_extension.py dist/figma-fit-*.mcpb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: figma-fit-extension
+          path: dist/*.mcpb
+          if-no-files-found: error

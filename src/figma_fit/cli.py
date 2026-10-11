@@ -39,11 +39,20 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     fetch.add_argument("--report", action="store_true", help="print only the size report line")
 
+    ui = sub.add_parser("ui", help="open a page in your browser to try figma-fit")
+    ui.add_argument("--port", type=int, default=0, help="port to listen on (default: any free)")
+    ui.add_argument("--no-browser", action="store_true", help="don't open the browser")
+
     args = parser.parse_args(argv)
     if args.command in (None, "serve"):
         from figma_fit.server import main as serve
 
         serve()
+        return
+    if args.command == "ui":
+        from figma_fit.ui import run
+
+        run(port=args.port, open_browser=not args.no_browser)
         return
     if args.url is None and args.capture is None and not args.sample:
         parser.error("fetch needs a Figma link, a --capture file, or --sample")

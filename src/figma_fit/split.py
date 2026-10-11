@@ -73,7 +73,9 @@ def plan_split(
             items.append(item(node))
             return
         children = node.get(CHILDREN) or []
-        shell = sizes[id(node)] - sum(sizes[id(c)] for c in children)
+        # The node's own fields: its total minus its children and the commas between them.
+        commas = max(len(children) - 1, 0)
+        shell = sizes[id(node)] - sum(sizes[id(c)] for c in children) - commas
         if not children or shell > capacity:
             oversize.append(item(node))
             return

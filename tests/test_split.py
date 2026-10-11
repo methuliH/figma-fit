@@ -58,6 +58,14 @@ def test_leaf_too_big_on_its_own_is_oversize_not_data():
     assert [g.node_ids for g in plan.groups] == [["3"]]
 
 
+def test_node_with_many_small_children_is_split_not_oversize():
+    # The commas between 1000 children must not count as the parent's own fields.
+    root = node("1", [node(str(i)) for i in range(2, 1002)])
+    plan = plan_split([root], limit=600, envelope=50, estimator=EXACT)
+    assert plan.oversize == ()
+    assert [i for g in plan.groups for i in g.node_ids] == [str(i) for i in range(2, 1002)]
+
+
 def test_node_whose_own_fields_are_too_big_is_oversize():
     root = node("1", [node("2")], text="z" * 5000)
     plan = plan_split([root], limit=400, envelope=50, estimator=EXACT)

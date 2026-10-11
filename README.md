@@ -85,6 +85,28 @@ claude mcp add figma-fit -e FIGMA_TOKEN=<your-token> -- uv run --directory "$PWD
 
 </details>
 
+## 👀 Try It in Your Browser
+
+No Claude needed, and no token needed for the built-in sample:
+
+```bash
+uvx --from git+https://github.com/methuliH/figma-fit figma-fit ui
+```
+
+A page opens where you paste a Figma link (or pick the sample, or a saved file), choose a budget, and see what Claude would get: the size before and after, what each step removed, the split plan when it doesn't fit, and the exact output, ready to copy.
+
+![The figma-fit page: a 38.4k-token sample design fits a 20k budget at 8.6k tokens, with a list of what was removed](docs/ui.png)
+
+The page runs only on your computer. A token typed into it is kept in memory until you close figma-fit.
+
+Prefer the terminal? (From a clone, put `uv run` in front.)
+
+```bash
+figma-fit fetch --sample                       # the built-in sample
+figma-fit fetch "<frame link>" --budget 15000  # a real frame (needs FIGMA_TOKEN)
+figma-fit fetch --capture saved.json --report  # a saved response, size line only
+```
+
 ## 🏃 Usage
 
 The server exposes two tools. Keeping the list short keeps tool-definition cost low.
@@ -171,7 +193,11 @@ The `legend` explains every convention, so the model never has to guess what `@p
 
 ```text
 src/figma_fit/
+├── cli.py              # figma-fit command: serve (default), fetch, ui
 ├── server.py           # MCP server: the two tools and error messages
+├── ui.py               # Local web server behind the browser page
+├── web/index.html      # The browser page (self-contained)
+├── samples/            # Built-in sample design (a saved Figma API response)
 ├── url.py              # Figma link → (file_key, node_id)
 ├── figma.py            # REST client and per-session subtree cache
 ├── fit.py              # Budget loop, fit and split responses (the guarantee lives here)

@@ -12,7 +12,15 @@ from collections.abc import Sequence
 from typing import Any
 
 from figma_fit.figma import FetchedNode
-from figma_fit.models import FitResult, PassNote, SplitGroup, SplitItem, SplitPlan, State
+from figma_fit.models import (
+    FitResult,
+    ParentShell,
+    PassNote,
+    SplitGroup,
+    SplitItem,
+    SplitPlan,
+    State,
+)
 from figma_fit.passes import DEFAULT_PASSES, LOCAL_PASSES, Pass
 from figma_fit.pipeline import SAFETY, apply_all, compact, effective_limit
 from figma_fit.report import fmt_tokens, report_line, with_own_count
@@ -23,6 +31,7 @@ MIN_BUDGET = 1000
 FOLLOW_UP_TOOL = "fetch_node_within_budget"
 _NAME_CHARS = 60
 _ENVELOPE_MARGIN = 32
+IN_NOTE = "id of the parent frame the node sits in; its own layout is listed under parents"
 
 
 class BudgetError(ValueError):
@@ -69,8 +78,18 @@ def fit_nodes(
     local = apply_all(roots, local_passes)
     envelope = _envelope(local.legend, result.notes, file_info, budget, original, estimator)
     plan = plan_split(local.data, limit, envelope, estimator=estimator)
+    keys = local.legend.get("keys", {})
     text, tokens = _render_split(
-        plan, plan_offset, file_info, budget, original, result.notes, limit, envelope, estimator
+        plan,
+        plan_offset,
+        file_info,
+        budget,
+        original,
+        result.notes,
+        limit,
+        envelope,
+        keys,
+        estimator,
     )
     return FitResult(
         status="split",
@@ -134,12 +153,14 @@ def _render_split(
     notes: Sequence[PassNote],
     limit: int,
     envelope: int,
+    keys: dict[str, str],
     estimator: Estimator,
 ) -> tuple[str, int]:
     groups = list(plan.groups[offset:])
     oversize = list(plan.oversize)
 
-    def build_body(n_groups: int, n_oversize: int) -> str:
+    def build_body(n_groups: int, n_oversize: int, with_parents: bool) -> str:
+        shown = groups[:n_groups]
         body: dict[str, Any] = {
             "status": "split",
             "file": file_info,
@@ -151,8 +172,21 @@ def _render_split(
                 f'Call {FOLLOW_UP_TOOL}(file_key="{file_info["key"]}", node_ids=<call.node_ids>, '
                 f"budget={budget}) for each call. Follow-ups are served from cache."
             ),
-            "calls": [_call(g) for g in groups[:n_groups]],
         }
+        if plan.parents:
+            legend: dict[str, Any] = {"conventions": {"in": IN_NOTE}}
+            body["legend"] = legend
+            if with_parents:
+                listed = [it for g in shown for it in g.items] + oversize[:n_oversize]
+                shells = [_shell(p) for p in plan.ancestors(listed)]
+                if shells:
+                    used = _keys_used(shells, keys)
+                    if used:
+                        legend["keys"] = used
+                    body["parents"] = shells
+            else:
+                body["parents_omitted"] = "parent layout does not fit this budget"
+        body["calls"] = [_call(g) for g in shown]
         if oversize[:n_oversize]:
             body["oversize"] = [_oversize(it, envelope) for it in oversize[:n_oversize]]
         remaining = len(groups) - n_groups
@@ -165,8 +199,8 @@ def _render_split(
             body["more_oversize"] = len(oversize) - n_oversize
         return serialize(body)
 
-    def render(n_groups: int, n_oversize: int) -> tuple[str, int]:
-        json_text = build_body(n_groups, n_oversize)
+    def render(n_groups: int, n_oversize: int, with_parents: bool) -> tuple[str, int]:
+        json_text = build_body(n_groups, n_oversize, with_parents)
 
         def build(tokens: int) -> str:
             line = report_line(
@@ -176,11 +210,20 @@ def _render_split(
 
         return with_own_count(build, estimator)
 
-    # Keep as many calls as fit, then as many oversize notes as fit.
-    n_groups = _largest_fitting(len(groups), lambda n: render(n, 0)[1] <= limit)
-    n_over = _largest_fitting(len(oversize), lambda n: render(n_groups, n)[1] <= limit)
-    text, tokens = render(n_groups, n_over)
-    if tokens > limit:  # names and notes alone are over: fall back to a bare pointer
+    def fits(n_groups: int, n_oversize: int, with_parents: bool) -> bool:
+        return render(n_groups, n_oversize, with_parents)[1] <= limit
+
+    # Keep as many calls as fit (with their parents' layout if possible), then as many
+    # oversize notes as fit.
+    with_parents = True
+    n_groups = _largest_fitting(len(groups), lambda n: fits(n, 0, True))
+    if groups and n_groups == 0:
+        with_parents = False
+        n_groups = _largest_fitting(len(groups), lambda n: fits(n, 0, False))
+    n_over = _largest_fitting(len(oversize), lambda n: fits(n_groups, n, with_parents))
+    text, tokens = render(n_groups, n_over, with_parents)
+    if tokens > limit or (groups and n_groups == 0):
+        # Not even one call fits next to the envelope; paging would never advance.
         text = (
             f"figma-fit: SPLIT, plan too large to show at budget {budget}. "
             f"Retry with a larger budget or a smaller frame."
@@ -202,21 +245,52 @@ def _largest_fitting(n_max: int, fits: Any) -> int:
 
 
 def _call(group: SplitGroup) -> dict[str, Any]:
-    return {
+    call: dict[str, Any] = {
         "node_ids": group.node_ids,
         "est_tokens": group.est_tokens,
         "layers": [f"{_short(it.name)} ({it.type})" for it in group.items],
     }
+    parent_ids = [it.parent_id for it in group.items]
+    if len(set(parent_ids)) == 1:
+        if parent_ids[0] is not None:
+            call["in"] = parent_ids[0]
+    else:
+        call["in"] = parent_ids  # one per node id
+    return call
 
 
 def _oversize(it: SplitItem, envelope: int) -> dict[str, Any]:
     needed = math.ceil((it.est_tokens + envelope) / SAFETY)
-    return {
+    out: dict[str, Any] = {
         "node_id": it.node_id,
         "layer": f"{_short(it.name)} ({it.type})",
         "est_tokens": it.est_tokens,
         "hint": f"too large on its own; needs a budget of about {fmt_tokens(needed)}+",
     }
+    if it.parent_id is not None:
+        out["in"] = it.parent_id
+    return out
+
+
+def _shell(parent: ParentShell) -> dict[str, Any]:
+    shell = dict(parent.shell)
+    if parent.parent_id is not None:
+        shell["in"] = parent.parent_id
+    return shell
+
+
+def _keys_used(shells: list[dict[str, Any]], keys: dict[str, str]) -> dict[str, str]:
+    """The legend.keys entries needed to read these shells."""
+    seen: set[str] = set()
+    stack: list[Any] = list(shells)
+    while stack:
+        value = stack.pop()
+        if isinstance(value, dict):
+            seen.update(value)
+            stack.extend(value.values())
+        elif isinstance(value, list):
+            stack.extend(value)
+    return {short: long for short, long in keys.items() if short in seen}
 
 
 def _short(name: str) -> str:

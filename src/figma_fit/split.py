@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from figma_fit.models import SplitGroup, SplitItem, SplitPlan
+from figma_fit.models import ParentShell, SplitGroup, SplitItem, SplitPlan
 from figma_fit.passes.base import CHILDREN
 from figma_fit.tokens import DEFAULT_ESTIMATOR, Estimator, serialize
 
@@ -54,33 +54,39 @@ def plan_split(
 ) -> SplitPlan:
     """Break the trees into groups that each fit ``limit`` as one response.
 
-    Oversized nodes are replaced by their children, recursively. A node that is
-    too big on its own (a leaf, or a node whose own fields are too big) is
-    listed as oversize and never planned as data. Small siblings are packed
-    together in document order, so each call covers neighbouring layers.
+    Oversized nodes are replaced by their children, recursively, and their own
+    fields are kept as parent shells so the layout around the children is not
+    lost. A node that is too big on its own (a leaf, or a node whose own fields
+    are too big) is listed as oversize and never planned as data. Small siblings
+    are packed together in document order, so each call covers neighbouring
+    layers.
     """
     capacity = limit - envelope
     sizes = node_sizes(roots, estimator)
     items: list[SplitItem] = []
     oversize: list[SplitItem] = []
+    parents: list[ParentShell] = []
 
-    def item(node: dict[str, Any]) -> SplitItem:
+    def item(node: dict[str, Any], parent_id: str | None) -> SplitItem:
         node_id, name, type_ = describe(node)
-        return SplitItem(node_id, name, type_, sizes[id(node)])
+        return SplitItem(node_id, name, type_, sizes[id(node)], parent_id)
 
-    def collect(node: dict[str, Any]) -> None:
+    def collect(node: dict[str, Any], parent_id: str | None = None) -> None:
         if sizes[id(node)] <= capacity:
-            items.append(item(node))
+            items.append(item(node, parent_id))
             return
         children = node.get(CHILDREN) or []
         # The node's own fields: its total minus its children and the commas between them.
         commas = max(len(children) - 1, 0)
         shell = sizes[id(node)] - sum(sizes[id(c)] for c in children) - commas
         if not children or shell > capacity:
-            oversize.append(item(node))
+            oversize.append(item(node, parent_id))
             return
+        node_id = describe(node)[0]
+        own = {k: v for k, v in node.items() if k != CHILDREN}
+        parents.append(ParentShell(node_id, parent_id, own))
         for child in children:
-            collect(child)
+            collect(child, node_id)
 
     for root in roots:
         collect(root)
@@ -99,4 +105,4 @@ def plan_split(
     if current:
         groups.append(SplitGroup(tuple(current), envelope + used))
 
-    return SplitPlan(tuple(groups), tuple(oversize))
+    return SplitPlan(tuple(groups), tuple(oversize), tuple(parents))

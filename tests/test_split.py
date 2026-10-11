@@ -71,3 +71,25 @@ def test_node_whose_own_fields_are_too_big_is_oversize():
     plan = plan_split([root], limit=400, envelope=50, estimator=EXACT)
     assert [o.node_id for o in plan.oversize] == ["1"]
     assert plan.groups == ()
+
+
+def test_split_parents_keep_their_own_fields_and_chain():
+    leaves = [node(f"3{i}", text="x" * 100) for i in range(4)]
+    section = {**node("2", leaves), "layoutMode": "VERTICAL", "itemSpacing": 8}
+    root = node("1", [section, node("4", text="y" * 100)])
+    plan = plan_split([root], limit=400, envelope=50, estimator=EXACT)
+
+    assert [(p.node_id, p.parent_id) for p in plan.parents] == [("1", None), ("2", "1")]
+    shell = plan.parents[1].shell
+    assert "children" not in shell
+    assert shell["layoutMode"] == "VERTICAL" and shell["itemSpacing"] == 8
+
+    parent_of = {it.node_id: it.parent_id for g in plan.groups for it in g.items}
+    assert parent_of == {"30": "2", "31": "2", "32": "2", "33": "2", "4": "1"}
+    first = [it for it in plan.groups[0].items]
+    assert [p.node_id for p in plan.ancestors(first)] == ["1", "2"]
+
+
+def test_tree_that_fits_has_no_parents():
+    plan = plan_split([node("1", [node("2")])], limit=10_000, envelope=100, estimator=EXACT)
+    assert plan.parents == ()

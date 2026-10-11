@@ -31,6 +31,20 @@ class SplitItem:
     name: str
     type: str
     est_tokens: int
+    parent_id: str | None = None  # the split parent this node sits in, if any
+
+
+@dataclass(frozen=True)
+class ParentShell:
+    """A node too big for one call, split into its children.
+
+    ``shell`` is its own fields without children (its layout, padding, fills),
+    so a model assembling the follow-ups knows how the children are arranged.
+    """
+
+    node_id: str
+    parent_id: str | None
+    shell: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -49,6 +63,18 @@ class SplitGroup:
 class SplitPlan:
     groups: tuple[SplitGroup, ...]
     oversize: tuple[SplitItem, ...]  # too big on their own; never returned as data
+    parents: tuple[ParentShell, ...] = ()  # document order
+
+    def ancestors(self, items: list[SplitItem]) -> list[ParentShell]:
+        """The parents of these items and all their ancestors, in document order."""
+        by_id = {p.node_id: p for p in self.parents}
+        wanted: set[str] = set()
+        for it in items:
+            pid = it.parent_id
+            while pid is not None and pid not in wanted:
+                wanted.add(pid)
+                pid = by_id[pid].parent_id
+        return [p for p in self.parents if p.node_id in wanted]
 
 
 @dataclass(frozen=True)

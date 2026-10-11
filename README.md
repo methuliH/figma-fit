@@ -91,12 +91,13 @@ The server exposes two tools. Keeping the list short keeps tool-definition cost 
 
 | Tool | Arguments | Use |
 |---|---|---|
-| `fetch_within_budget` | `url`, `budget` = 20000, `passes`, `plan_offset` | Main tool: fit a frame, or get a split plan. |
+| `fetch_within_budget` | `url`, `budget` = 20000, `passes`, `plan_offset`, `refresh` | Main tool: fit a frame, or get a split plan. |
 | `fetch_node_within_budget` | `file_key`, `node_ids`, `budget`, `passes`, `plan_offset` | The follow-up calls a split plan lists. Served from cache. |
 
 - `budget` is the maximum number of tokens in the response. The minimum is 1000.
 - `passes` restricts compaction to a subset, e.g. `["drop_invisible", "minify"]`.
 - `plan_offset` pages through a split plan too long to list in one response.
+- `refresh` re-fetches the frame from Figma instead of the session cache, e.g. after the design changed. It costs one request. A new file version also clears everything cached from the old one, so follow-ups never mix versions.
 
 **Links must point at a frame.** A link without `node-id` is refused, because whole files are exactly the case that blows every budget. Design, prototype and branch links all work. FigJam, Slides and Make links are refused.
 
@@ -111,14 +112,18 @@ figma-fit: 689/8.0k tokens (est.) · SPLIT: 252k of data does not fit, see calls
   "status": "split",
   "reason": "~252k tokens of data; even after all passes it does not fit 8.0k. Fetch it in the calls below.",
   "next": "Call fetch_node_within_budget(file_key=\"AbC123\", node_ids=<call.node_ids>, budget=8000) for each call. Follow-ups are served from cache.",
+  "legend": { "conventions": { "in": "id of the parent frame the node sits in; …" }, "keys": { "box": "absoluteBoundingBox as [x, y, width, height]", … } },
+  "parents": [
+    { "id": "3:1", "name": "Screen", "type": "FRAME", "clip": true, "box": [0, 0, 1440, 29680], "fills": [{ "type": "SOLID", "color": "#03d642" }] }
+  ],
   "calls": [
-    { "node_ids": ["3:134"], "est_tokens": 5654, "layers": ["Section 0 (FRAME)"] },
-    { "node_ids": ["3:168"], "est_tokens": 5673, "layers": ["Section 1 (FRAME)"] }
+    { "node_ids": ["3:134"], "est_tokens": 5648, "layers": ["Section 0 (FRAME)"], "in": "3:1" },
+    { "node_ids": ["3:168"], "est_tokens": 5667, "layers": ["Section 1 (FRAME)"], "in": "3:1" }
   ]
 }
 ```
 
-The agent makes each call in turn. Small neighbouring layers are bundled into one call. A single layer too big for any call, such as a huge text block, is listed under `oversize` with the budget it would need. It is never sent as data.
+The agent makes each call in turn. `parents` keeps the layout of every frame that was split up (auto-layout direction, gap, padding, fills, size), and each call's `in` says which parent its layers sit in, so the pieces can be put back together. Small neighbouring layers are bundled into one call. A single layer too big for any call, such as a huge text block, is listed under `oversize` with the budget it would need. It is never sent as data.
 
 ## 🏗 How It Works
 
@@ -208,8 +213,7 @@ It prints the estimate ÷ actual ratio for every capture and budget, and says wh
 ## 🚧 Limits
 
 - **Design files only.** FigJam, Slides and Make links are refused, because the passes are written for design-file layers.
-- **Split plans lose the parent's layout.** When a section is split, its children come back in separate calls, but the parent's own auto-layout direction, gap and padding are not repeated in them.
-- **The cache lives as long as the server.** If a design changes, restart the server to fetch the new version.
+- **The cache is per session.** A changed design is picked up only with `refresh: true` or a server restart.
 - **Estimates, not exact counts.** Exact counting is on the v2 list.
 
 Coming in v2: exact token counting, lossy passes that report every drop, a proxy mode for the official Figma MCP, and Notion support. See the [roadmap](PLAN.md#28-v2-backlog-in-priority-order).

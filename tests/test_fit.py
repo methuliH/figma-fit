@@ -45,6 +45,10 @@ def test_output_never_exceeds_budget(name, budget):
     assert estimate(result.text) == result.tokens
     if result.status == "split":
         assert all(g.est_tokens <= budget for g in result.plan.groups)
+        line, _, body = result.text.partition("\n")
+        if body:  # paging must always advance
+            shown = json.loads(body)
+            assert shown["calls"] or "more" not in shown
 
 
 @settings(max_examples=10, deadline=None, suppress_health_check=[HealthCheck.too_slow])
@@ -110,3 +114,58 @@ def test_selected_passes_only():
 def test_budget_below_minimum_is_rejected():
     with pytest.raises(BudgetError):
         fit_nodes([fetched(FRAMES["small"])], MIN_BUDGET - 1)
+
+
+def table(cells):
+    children = [
+        {
+            "id": f"5:{i}",
+            "name": f"Cell {i}",
+            "type": "TEXT",
+            "characters": str(i),
+            "absoluteBoundingBox": {"x": 0, "y": i * 20, "width": 30, "height": 20},
+        }
+        for i in range(1, cells + 1)
+    ]
+    return {
+        "id": "5:0",
+        "name": "Table",
+        "type": "FRAME",
+        "layoutMode": "VERTICAL",
+        "itemSpacing": 4,
+        "absoluteBoundingBox": {"x": 0, "y": 0, "width": 30, "height": 20 * cells},
+        "children": children,
+    }
+
+
+def test_split_response_includes_the_layout_of_split_parents():
+    result = fit_nodes([fetched(table(3000))], 2_000)
+    assert result.status == "split" and result.tokens <= 2_000
+    body = json.loads(result.text.split("\n", 1)[1])
+    assert body["parents"] == [
+        {
+            "id": "5:0",
+            "name": "Table",
+            "type": "FRAME",
+            "layout": "VERTICAL",
+            "gap": 4,
+            "box": [0, 0, 30, 60000],
+        }
+    ]
+    assert body["legend"]["keys"] == {
+        "box": "absoluteBoundingBox as [x, y, width, height]",
+        "gap": "itemSpacing",
+        "layout": "layoutMode",
+    }
+    assert "in" in body["legend"]["conventions"]
+    assert body["calls"] and all(c["in"] == "5:0" for c in body["calls"])
+    assert body["more"]["remaining_calls"] > 0
+
+
+def test_split_parents_are_those_of_the_calls_shown():
+    result = fit_nodes([fetched(FRAMES["large"])], 8_000)
+    body = json.loads(result.text.split("\n", 1)[1])
+    listed = {p["id"] for p in body["parents"]}
+    called_in = {c["in"] for c in body["calls"]}
+    assert called_in <= listed
+    assert all(p.get("in") in listed for p in body["parents"] if "in" in p)

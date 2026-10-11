@@ -1,6 +1,7 @@
 # figma-fit
 
-![License: MIT](https://img.shields.io/badge/license-MIT-blue)
+[![CI](https://github.com/methuliH/figma-fit/actions/workflows/ci.yml/badge.svg)](https://github.com/methuliH/figma-fit/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue)
 ![MCP server](https://img.shields.io/badge/MCP-server-8A2BE2)
 
@@ -215,4 +216,4 @@ Coming in v2: exact token counting, lossy passes that report every drop, a proxy
 
 ## 📄 License
 
-MIT, as declared in [`pyproject.toml`](pyproject.toml).
+[MIT](LICENSE) © 2026 methuliH

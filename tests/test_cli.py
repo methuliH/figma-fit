@@ -26,6 +26,17 @@ def test_fetch_from_capture_prints_report_and_data(capsys):
     assert json.loads(body)["data"][0]["name"] == "Pricing"
 
 
+@pytest.mark.parametrize(("budget", "status"), [("20000", "fit"), ("3000", "split")])
+def test_fetch_sample_needs_no_token(capsys, monkeypatch, budget, status):
+    monkeypatch.delenv("FIGMA_TOKEN", raising=False)
+    monkeypatch.delenv("FIGMA_API_KEY", raising=False)
+    code, out, _ = run(capsys, "fetch", "--sample", "--budget", budget)
+    assert code == 0
+    body = json.loads(out.split("\n", 1)[1])
+    assert body["status"] == status
+    assert body["file"]["name"].startswith("Sample:")
+
+
 def test_fetch_report_only(capsys):
     code, out, _ = run(capsys, "fetch", "--capture", FIXTURE, "--report", "--budget", "1000")
     assert code == 0
@@ -67,6 +78,11 @@ def test_fetch_without_link_or_capture_is_a_usage_error(capsys):
     code, _, err = run(capsys, "fetch")
     assert code == 2
     assert "needs a Figma link" in err
+
+
+def test_sample_and_capture_are_exclusive(capsys):
+    code, _, err = run(capsys, "fetch", "--sample", "--capture", FIXTURE)
+    assert code == 2 and "not allowed with" in err
 
 
 @pytest.mark.parametrize("argv", [[], ["serve"]])

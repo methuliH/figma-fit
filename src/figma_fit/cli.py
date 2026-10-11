@@ -14,6 +14,7 @@ from pathlib import Path
 
 from figma_fit.figma import FetchedNode, FigmaAPIError, FigmaClient, nodes_from_body
 from figma_fit.fit import BudgetError, fit_nodes
+from figma_fit.samples import load_sample
 from figma_fit.server import DEFAULT_BUDGET
 from figma_fit.url import FigmaURLError, parse_figma_url
 
@@ -29,8 +30,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     fetch = sub.add_parser("fetch", help="fetch one frame and print what Claude would receive")
     fetch.add_argument("url", nargs="?", help="Figma frame link (Copy link to selection)")
     fetch.add_argument("--budget", type=int, default=DEFAULT_BUDGET, help="max tokens")
-    fetch.add_argument(
+    source = fetch.add_mutually_exclusive_group()
+    source.add_argument(
         "--capture", type=Path, help="use a saved Figma API response instead of calling Figma"
+    )
+    source.add_argument(
+        "--sample", action="store_true", help="use the built-in sample design (no token needed)"
     )
     fetch.add_argument("--report", action="store_true", help="print only the size report line")
 
@@ -40,8 +45,8 @@ def main(argv: Sequence[str] | None = None) -> None:
 
         serve()
         return
-    if args.url is None and args.capture is None:
-        parser.error("fetch needs a Figma link, a --capture file, or both")
+    if args.url is None and args.capture is None and not args.sample:
+        parser.error("fetch needs a Figma link, a --capture file, or --sample")
     sys.exit(_fetch(args))
 
 
@@ -50,7 +55,7 @@ def _fetch(args: argparse.Namespace) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     try:
-        nodes = _load(args.url, args.capture)
+        nodes = load_sample() if args.sample else _load(args.url, args.capture)
         text = fit_nodes(nodes, args.budget).text
     except (FigmaAPIError, FigmaURLError, BudgetError, ValueError, OSError) as e:
         print(f"figma-fit: {e}", file=sys.stderr)
